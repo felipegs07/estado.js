@@ -9,8 +9,8 @@ const executeEffectFn = <T>(atom: Atom, computationFn: () => T) => {
 };
 
 export class AtomEffect<T> {
-  dependencies: Set<Atom>;
-  computationFn: () => T;
+  private dependencies: Set<Atom>;
+  private computationFn: () => T;
   type: AtomTypes;
 
   constructor(fn: () => T) {

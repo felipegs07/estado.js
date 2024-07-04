@@ -1,6 +1,6 @@
 import { lifeCycle, PHASES } from "../globals/life-cycle";
 import flagsGlobals from '../globals/flags';
-import { StatusColors, AtomTypes, Atom } from "./types";
+import { StatusColors, AtomTypes, AtomRootType } from "./types";
 
 
 const getInitialValue = <T>(atom: Atom, func: () => T) => {
@@ -30,6 +30,10 @@ export class AtomRoot<T> {
     this.listeners = new Set();
   }
 
+  getStatus():StatusColors {
+    return this.color;
+  }
+
   sub(fn: () => void): () => void {
     this.listeners.add(fn);
 
@@ -37,6 +41,7 @@ export class AtomRoot<T> {
       this.listeners.delete(fn);
     }
   }
+  
 
   runListeners():void {
     this.listeners.forEach(fn => {
@@ -69,8 +74,10 @@ export class AtomRoot<T> {
 
   set(newValueOrFn: T | any): void {
     const currentPhase = lifeCycle.getPhase();
-    if (currentPhase === PHASES.waiting) {
+    const isBatching = flagsGlobals.getIsBatch();
+    if (currentPhase === PHASES.waiting || isBatching) {
       lifeCycle.startChecking();
+
       this.state =
       typeof newValueOrFn !== "function"
         ? newValueOrFn
@@ -79,8 +86,10 @@ export class AtomRoot<T> {
       flagsGlobals.addListener(this);
       this.checkChildren();
 
-      lifeCycle.startDeriving();
-      lifeCycle.startNotifying();
+      if (!isBatching) {
+        lifeCycle.startDeriving();
+        lifeCycle.startNotifying();
+      }
     }
   }
 }

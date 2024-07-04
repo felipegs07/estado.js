@@ -11,13 +11,13 @@ const calculateStateValue = <T>(atom: Atom, func: () => T) => {
 };
 
 export class AtomDerived<T> {
-  listeners: Set<() => void>;
-  children: Set<Atom>;
-  dependencies: Set<Atom>;
-  state: T;
-  color: StatusColors;
-  type: AtomTypes;
-  computationFn: () => T;
+  private listeners: Set<() => void>;
+  private children: Set<Atom>;
+  private dependencies: Set<Atom>;
+  private state: T;
+  private color: StatusColors;
+  private type: AtomTypes;
+  private computationFn: () => T;
 
   constructor(fn: () => T) {
     this.dependencies = new Set();
