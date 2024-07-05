@@ -1,4 +1,4 @@
-import { StatusColors, AtomTypes, Atom } from "./types";
+import { StatusColors, AtomTypes, Atom, DerivedTypes } from "./types";
 import flagsGlobals from '../globals/flags';
 
 
@@ -16,7 +16,7 @@ export class AtomDerived<T> {
   private dependencies: Set<Atom>;
   private state: T;
   private color: StatusColors;
-  private type: AtomTypes;
+  private type: DerivedTypes;
   private computationFn: () => T;
 
   constructor(fn: () => T) {
@@ -26,8 +26,18 @@ export class AtomDerived<T> {
     this.state = calculateStateValue(this, fn);
     this.children = new Set();
     this.listeners = new Set();
-    this.type = this.dependencies.size > 1 ? 'MULTI' : 'SIMPLE';
+    this.type = this.defineDerivedType();
   }
+
+  private defineDerivedType(): DerivedTypes {
+    if( this.dependencies.size > 1) return 'MULTI';
+
+    const it = this.dependencies.values();
+    const first = it.next();
+    const dependency = first.value;
+
+    return dependency.type === 'MULTI' ? 'MULTI' : 'SIMPLE';
+  } 
 
   addDeps(dep: Atom):void {
     this.dependencies.add(dep);
@@ -41,6 +51,8 @@ export class AtomDerived<T> {
     this.listeners.forEach(fn => {
       fn();
     });
+
+    this.color = 'BLACK';
   }
 
   checkChildren():void {
@@ -58,12 +70,7 @@ export class AtomDerived<T> {
   get(): T {
     const CURRENT_ATOM = flagsGlobals.getCurrentAtom();
 
-    
-    if (CURRENT_ATOM !== null && CURRENT_ATOM.type === 'EFFECT') {
-      if (CURRENT_ATOM?.executeEffect){
-        this.listeners.add(CURRENT_ATOM.executeEffect);
-      }
-    } else if (CURRENT_ATOM !== null) {
+    if (CURRENT_ATOM !== null) {
       this.children.add(CURRENT_ATOM);
       CURRENT_ATOM.addDeps(this);
     }
@@ -71,10 +78,10 @@ export class AtomDerived<T> {
     return this.state;
   }
 
-  recalculateState():boolean {
+  recalculateState(): boolean {
     this.dependencies.clear();
     const newState = calculateStateValue(this, this.computationFn);
-    this.type = this.dependencies.size > 1 ? 'MULTI' : 'SIMPLE';
+    this.type = this.defineDerivedType();
 
     if (newState !== this.state) {
       this.state = newState;
@@ -88,7 +95,7 @@ export class AtomDerived<T> {
     return false;
   }
 
-  check():void {
+  check(): void {
     if (this.type === 'SIMPLE'){
       const hasUpdate = this.recalculateState();
 
@@ -102,14 +109,27 @@ export class AtomDerived<T> {
     }
   }
 
-  sync():void {
+  sync(): boolean {
+    let hasUpdate: boolean = false;
     this.dependencies.forEach(dep => {
       const status = dep.getStatus();
       if (status === 'RED') {
-        dep.sync();
+        const newStatus = dep.sync();
+
+        if (newStatus) hasUpdate = true;
+      } 
+      
+      if (status === 'GREEN') {
+        hasUpdate = true;
       }
     });
 
-    this.recalculateState();
+    if (hasUpdate) {
+      this.recalculateState();
+    } else {
+      this.color = 'BLACK';
+    }
+
+    return hasUpdate;
   }
 }

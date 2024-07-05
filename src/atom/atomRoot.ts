@@ -60,11 +60,7 @@ export class AtomRoot<T> {
   get(): T {
     const CURRENT_ATOM = flagsGlobals.getCurrentAtom();
 
-    if (CURRENT_ATOM !== null && CURRENT_ATOM.type === 'EFFECT') {
-      if (CURRENT_ATOM?.executeEffect){
-        this.listeners.add(CURRENT_ATOM.executeEffect);
-      }
-    } else if (CURRENT_ATOM !== null) {
+    if (CURRENT_ATOM !== null) {
       this.children.add(CURRENT_ATOM);
       CURRENT_ATOM.addDeps(this);
     }
@@ -78,17 +74,21 @@ export class AtomRoot<T> {
     if (currentPhase === PHASES.waiting || isBatching) {
       lifeCycle.startChecking();
 
-      this.state =
-      typeof newValueOrFn !== "function"
+      const newState = typeof newValueOrFn !== "function"
         ? newValueOrFn
         : newValueOrFn(this.state);
 
-      flagsGlobals.addListener(this);
-      this.checkChildren();
+      if (this.state !== newState) {
+        this.state = newState;
+        this.color = 'GREEN';
 
-      if (!isBatching) {
-        lifeCycle.startDeriving();
-        lifeCycle.startNotifying();
+        flagsGlobals.addListener(this);
+        this.checkChildren();
+
+        if (!isBatching) {
+          lifeCycle.startDeriving();
+          lifeCycle.startNotifying();
+        }
       }
     }
   }

@@ -32,7 +32,7 @@ export const derived = <T>(initialValueOrFn: () => T) => {
   });
 };
 export const effect = (callback: () => void) => {
-  return new AtomEffect(callback);
+  new AtomEffect(callback);
 };
 
 export const batchUpdates = (updateFn: () => void) => {

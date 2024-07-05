@@ -46,9 +46,12 @@ batchUpdates(() => {
   E.set(31);
 });
 console.log('______________________________________')
-Z.set(51);
 
-const ef = effect(() => {
+setTimeout(() => {
+  Z.set(51);
+}, 2000)
+
+effect(() => {
   console.log(`Effect: ${C.get()}-${D.get()}`)  
 });
 
@@ -57,4 +60,3 @@ console.log('lifecycle', {
   toDerive: flagsGlobals.getAtomsToDerive(),
   ef
 });
-
