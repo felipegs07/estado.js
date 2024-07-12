@@ -4,14 +4,14 @@ import { AtomEffect } from './atom/atomEffect';
 import flagsGlobals from './globals/flags';
 import { lifeCycle } from './globals/life-cycle';
 
-export const atom = <T>(initialValueOrFn: T | (() => T)) => {
+export const state = <T>(initialValueOrFn: T | (() => T)) => {
   const instance = new AtomRoot<T>(initialValueOrFn)
   
   return ({
     sub: (fn: () => void) => {
       instance.sub(fn);
     },
-    set: (newValueOrFn: T | any) => {
+    set: (newValueOrFn: T | ((oldState: T) => T)) => {
       instance.set(newValueOrFn);
     },
     get: () => {

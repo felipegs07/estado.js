@@ -1,9 +1,19 @@
 import { StatusColors, AtomTypes, Atom, DerivedTypes } from "./types";
 import flagsGlobals from '../globals/flags';
+import { lifeCycle, PHASES } from "../globals/life-cycle";
 
 
 const calculateStateValue = <T>(atom: Atom, func: () => T) => {
   flagsGlobals.addCurrentAtom(atom);
+   if (func?.constructor?.name == 'AsyncFunction') {
+    func()?.then(value => {
+      atom.asyncUpdate(value as T);
+    });
+
+    flagsGlobals.clearCurrentAtom();
+    return undefined;
+  }
+
   const value = func();
   flagsGlobals.clearCurrentAtom();
 
@@ -14,7 +24,8 @@ export class AtomDerived<T> {
   private listeners: Set<() => void>;
   private children: Set<Atom>;
   private dependencies: Set<Atom>;
-  private state: T;
+  private effects: Set<Atom>;
+  private state: T | undefined;
   private color: StatusColors;
   private type: DerivedTypes;
   private computationFn: () => T;
@@ -27,6 +38,7 @@ export class AtomDerived<T> {
     this.children = new Set();
     this.listeners = new Set();
     this.type = this.defineDerivedType();
+    this.effects = new Set();
   }
 
   private defineDerivedType(): DerivedTypes {
@@ -63,6 +75,14 @@ export class AtomDerived<T> {
     });
   }
 
+  checkEffects():void {
+    const effectsList = [...this.effects];
+    this.effects.clear();
+    effectsList.forEach(atom => {
+      atom.check();
+    });
+  }
+
   getStatus():StatusColors {
     return this.color;
   }
@@ -71,37 +91,66 @@ export class AtomDerived<T> {
     const CURRENT_ATOM = flagsGlobals.getCurrentAtom();
 
     if (CURRENT_ATOM !== null) {
-      this.children.add(CURRENT_ATOM);
       CURRENT_ATOM.addDeps(this);
+
+      if (CURRENT_ATOM?.type === 'EFFECT') {
+        this.effects.add(CURRENT_ATOM);
+      } else {
+        this.children.add(CURRENT_ATOM);
+      }
     }
 
-    return this.state;
+    return this.state as T;
   }
 
-  recalculateState(): boolean {
-    this.dependencies.clear();
-    const newState = calculateStateValue(this, this.computationFn);
-    this.type = this.defineDerivedType();
+  asyncUpdate(newState: T): void {
+    const currentPhase = lifeCycle.getPhase();
+    const isBatching = flagsGlobals.getIsBatch();
+    if (currentPhase === PHASES.waiting || isBatching) {
+      lifeCycle.startChecking();
 
-    if (newState !== this.state) {
+      const hasUpdate = this.updateState(newState);
+
+      if (hasUpdate) {
+        this.color = 'GREEN';
+
+        if (!isBatching) {
+          lifeCycle.startDeriving();
+          lifeCycle.startNotifying();
+        }
+      } else {
+        lifeCycle.startWaiting();
+      }
+    }
+  }
+
+  updateState(newState: T | undefined): boolean {
+    if (newState !== undefined && newState !== this.state) {
       this.state = newState;
       this.color = 'GREEN';
       flagsGlobals.addListener(this);
       
-      return true;
-    }
+      this.checkEffects();
+      this.checkChildren();
 
+      return true;
+    } 
+    
     this.color = 'BLACK';
     return false;
   }
 
+  recalculateState(): void {
+    this.dependencies.clear();
+    const newState = calculateStateValue(this, this.computationFn);
+    this.type = this.defineDerivedType();
+
+    this.updateState(newState);
+  }
+
   check(): void {
     if (this.type === 'SIMPLE'){
-      const hasUpdate = this.recalculateState();
-
-      if (hasUpdate) {
-        this.checkChildren();
-      }
+      this.recalculateState();
     } else {
       this.color = 'RED';
       flagsGlobals.addAtomDerive(this);

@@ -3,17 +3,23 @@ import flagsGlobals from '../globals/flags';
 import { StatusColors, AtomTypes, AtomRootType } from "./types";
 
 
-const getInitialValue = <T>(atom: Atom, func: () => T) => {
-  flagsGlobals.addCurrentAtom(atom);
-  const value = func();
+const getInitialValue = <T>(atom: Atom, func: () => T | (() => Promise<T>)) => {
   flagsGlobals.clearCurrentAtom();
-
+  if (func?.constructor?.name == 'AsyncFunction') {
+    func()?.then(value => {
+      atom.set(value as T);
+    });
+    return undefined;
+  }
+  
+  const value = func();
   return value;
 };
 
 export class AtomRoot<T> {
   listeners: Set<() => void>;
   children: Set<Atom>;
+  effects: Set<Atom>;
   state: T;
   color: StatusColors;
   type: AtomTypes;
@@ -28,6 +34,7 @@ export class AtomRoot<T> {
         : getInitialValue(this, initialValueOrFn);
     this.children = new Set();
     this.listeners = new Set();
+    this.effects = new Set();
   }
 
   getStatus():StatusColors {
@@ -57,18 +64,31 @@ export class AtomRoot<T> {
     });
   }
 
+  checkEffects():void {
+    const effectsList = [...this.effects];
+    this.effects.clear();
+    effectsList.forEach(atom => {
+      atom.check();
+    });
+  }
+
   get(): T {
     const CURRENT_ATOM = flagsGlobals.getCurrentAtom();
 
     if (CURRENT_ATOM !== null) {
-      this.children.add(CURRENT_ATOM);
       CURRENT_ATOM.addDeps(this);
+
+      if (CURRENT_ATOM?.type === 'EFFECT') {
+        this.effects.add(CURRENT_ATOM);
+      } else {
+        this.children.add(CURRENT_ATOM);
+      }
     }
 
     return this.state;
   }
 
-  set(newValueOrFn: T | any): void {
+  set(newValueOrFn: T | ((oldState: T) => T)): void {
     const currentPhase = lifeCycle.getPhase();
     const isBatching = flagsGlobals.getIsBatch();
     if (currentPhase === PHASES.waiting || isBatching) {
@@ -83,12 +103,15 @@ export class AtomRoot<T> {
         this.color = 'GREEN';
 
         flagsGlobals.addListener(this);
+        this.checkEffects();
         this.checkChildren();
 
         if (!isBatching) {
           lifeCycle.startDeriving();
           lifeCycle.startNotifying();
         }
+      } else {
+        lifeCycle.startWaiting();
       }
     }
   }

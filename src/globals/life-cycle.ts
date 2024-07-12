@@ -10,6 +10,10 @@ export const PHASES = {
 const createLifeCycle = () => {
   let state = PHASES.waiting;
 
+  const startWaiting = () => {
+    state = PHASES.waiting;
+  };
+
   const startChecking = () => {
     state = PHASES.checking;
   };
@@ -24,7 +28,7 @@ const createLifeCycle = () => {
     state = PHASES.notifying;
 
     flagsGlobals.runListeners();
-    flagsGlobals.clearAllAtoms();
+    //flagsGlobals.clearAllAtoms();
     
     state = PHASES.waiting;
   };
@@ -37,6 +41,7 @@ const createLifeCycle = () => {
     startChecking,
     startDeriving,
     startNotifying,
+    startWaiting,
     getPhase,
   };
 };
