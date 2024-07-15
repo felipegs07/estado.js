@@ -1,25 +1,25 @@
-import { Atom, Flags } from '../atom/types';
+import { Atom } from '../atom/types';
 
 const createFlags = () => {
-  let CURRENT_ATOM: Atom | null = null;
-  let LISTENERS: Set<Atom> = new Set();
-  let ATOMS_DERIVE: Set<Atom> = new Set();
+  let CURRENT_ATOM: Atom<any> | null = null;
+  let LISTENERS: Set<Atom<any>> = new Set();
+  let ATOMS_DERIVE: Set<Atom<any>> = new Set();
   let IS_BATCH: boolean = false;
 
-  const getCurrentAtom = () => CURRENT_ATOM;
-  const getListeners = () => LISTENERS;
-  const getAtomsToDerive = () => ATOMS_DERIVE;
+  const getCurrentAtom = <T>() => CURRENT_ATOM as Atom<T>;
+  const getListeners = <T>() => LISTENERS as Set<Atom<T>>;
+  const getAtomsToDerive = <T>() => ATOMS_DERIVE as Set<Atom<T>>;
   const getIsBatch = () => IS_BATCH;
 
-  const addCurrentAtom = (atom: Atom) => {
+  const addCurrentAtom = <T>(atom: Atom<T>) => {
     CURRENT_ATOM = atom;
   };
 
-  const addListener = (atom: Atom) => {
+  const addListener = <T>(atom: Atom<T>) => {
     LISTENERS.add(atom);
   };
 
-  const addAtomDerive = (atom:Atom) => {
+  const addAtomDerive = <T>(atom:Atom<T>) => {
     ATOMS_DERIVE.add(atom);
   };
 

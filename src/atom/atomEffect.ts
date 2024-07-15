@@ -2,14 +2,14 @@ import { AtomTypes, Atom } from "./types";
 import flagsGlobals from '../globals/flags';
 
 
-const executeEffectFn = <T>(atom: Atom, computationFn: () => T) => {
+const executeEffectFn = <T>(atom: Atom<T>, computationFn: () => T) => {
   flagsGlobals.addCurrentAtom(atom);
   computationFn();
   flagsGlobals.clearCurrentAtom();
 };
 
 export class AtomEffect<T> {
-  private dependencies: Set<Atom>;
+  private dependencies: Set<Atom<T>>;
   private computationFn: () => T;
   type: AtomTypes;
 
@@ -18,15 +18,15 @@ export class AtomEffect<T> {
     this.dependencies = new Set();
     this.computationFn = fn;
 
-    executeEffectFn(this, fn);
+    executeEffectFn(this as unknown as Atom<T>, fn);
   }
 
   private executeEffect():void {
     this.dependencies.clear();
-    executeEffectFn(this, this.computationFn);
+    executeEffectFn(this as unknown as Atom<T>, this.computationFn);
   }
 
-  addDeps(dep: Atom):void {
+  addDeps(dep: Atom<T>):void {
     this.dependencies.add(dep);
   }
 
@@ -35,7 +35,7 @@ export class AtomEffect<T> {
   }
 
   check(): void {
-    flagsGlobals.addAtomDerive(this);
+    flagsGlobals.addAtomDerive<T>(this as unknown as Atom<T>);
   }
 
   sync(): boolean {
@@ -54,7 +54,7 @@ export class AtomEffect<T> {
     });
 
     if (hasUpdate) {
-      flagsGlobals.addListener(this);
+      flagsGlobals.addListener<T>(this as unknown as Atom<T>);
     }
 
     // just to keep the method default

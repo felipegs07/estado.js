@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "build": "tsc && vite build && dts-bundle-generator --config ./bundle-generator.config.ts",
     "test": "vitest"
   },
   "devDependencies": {
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "dts-bundle-generator": "^9.5.1"
   }
 }

@@ -1,25 +1,25 @@
 import { lifeCycle, PHASES } from "../globals/life-cycle";
 import flagsGlobals from '../globals/flags';
-import { StatusColors, AtomTypes, AtomRootType } from "./types";
+import { StatusColors, AtomTypes, Atom } from "./types";
 
-
-const getInitialValue = <T>(atom: Atom, func: () => T | (() => Promise<T>)) => {
+const getInitialValue = <T>(atom: Atom<T>, func: () => T | Promise<T>) => {
   flagsGlobals.clearCurrentAtom();
-  if (func?.constructor?.name == 'AsyncFunction') {
-    func()?.then(value => {
-      atom.set(value as T);
+  const fnValue = func();
+  if (fnValue instanceof Promise) {
+    fnValue.then(value => {
+      atom.set(value);
     });
+
     return undefined;
   }
   
-  const value = func();
-  return value;
+  return fnValue;
 };
 
 export class AtomRoot<T> {
   listeners: Set<() => void>;
-  children: Set<Atom>;
-  effects: Set<Atom>;
+  children: Set<Atom<T>>;
+  effects: Set<Atom<T>>;
   state: T;
   color: StatusColors;
   type: AtomTypes;
@@ -31,13 +31,13 @@ export class AtomRoot<T> {
     this.state =
       typeof initialValueOrFn !== "function"
         ? initialValueOrFn
-        : getInitialValue(this, initialValueOrFn);
+        : getInitialValue(this as unknown as Atom<T>, initialValueOrFn);
     this.children = new Set();
     this.listeners = new Set();
     this.effects = new Set();
   }
 
-  getStatus():StatusColors {
+  getStatus(): StatusColors {
     return this.color;
   }
 
@@ -50,13 +50,15 @@ export class AtomRoot<T> {
   }
   
 
-  runListeners():void {
+  runListeners(): void {
     this.listeners.forEach(fn => {
       fn();
     });
+
+    this.color = 'BLACK';
   }
 
-  checkChildren():void {
+  checkChildren(): void {
     const childrenList = [...this.children];
     this.children.clear();
     childrenList.forEach(atom => {
@@ -64,7 +66,7 @@ export class AtomRoot<T> {
     });
   }
 
-  checkEffects():void {
+  checkEffects(): void {
     const effectsList = [...this.effects];
     this.effects.clear();
     effectsList.forEach(atom => {
@@ -73,10 +75,10 @@ export class AtomRoot<T> {
   }
 
   get(): T {
-    const CURRENT_ATOM = flagsGlobals.getCurrentAtom();
+    const CURRENT_ATOM = flagsGlobals.getCurrentAtom<T>();
 
     if (CURRENT_ATOM !== null) {
-      CURRENT_ATOM.addDeps(this);
+      CURRENT_ATOM.addDeps(this as unknown as Atom<T>);
 
       if (CURRENT_ATOM?.type === 'EFFECT') {
         this.effects.add(CURRENT_ATOM);
@@ -94,15 +96,15 @@ export class AtomRoot<T> {
     if (currentPhase === PHASES.waiting || isBatching) {
       lifeCycle.startChecking();
 
-      const newState = typeof newValueOrFn !== "function"
-        ? newValueOrFn
-        : newValueOrFn(this.state);
+      const newState = newValueOrFn instanceof Function
+        ? newValueOrFn(this.state)
+        : newValueOrFn;
 
       if (this.state !== newState) {
         this.state = newState;
         this.color = 'GREEN';
 
-        flagsGlobals.addListener(this);
+        flagsGlobals.addListener<T>(this as unknown as Atom<T>);
         this.checkEffects();
         this.checkChildren();
 

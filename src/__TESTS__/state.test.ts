@@ -8,7 +8,7 @@ describe('State', () => {
   });
   
   it('should update the value of state when call set method', () => {
-    const a = state(10);
+    const a = state<number | string | { value: number }>(10);
     expect(a.get()).toBe(10);
     a.set(50);
     expect(a.get()).toBe(50);

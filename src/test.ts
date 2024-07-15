@@ -34,32 +34,25 @@ const D = derived(() => B.get() + C.get() + F.get());
 
 
 effect(() => {
-  A.get();
-  console.log('A');
+  console.log('A ', A.get());
 });
 effect(() => {
-  B.get();
-  console.log('B');
+  console.log('B ', B.get());
 });
 effect(() => {
-  C.get();
-  console.log('C');
+  console.log('C ', C.get());
 });
 effect(() => {
-  D.get();
-  console.log('D')
+  console.log('D ', D.get())
 });
 effect(() => {
-  E.get();
-  console.log('E')
+  console.log('E ', E.get())
 });
 effect(() => {
-  F.get();
-  console.log('F')
+  console.log('F ', F.get())
 });
 effect(() => {
-  Z.get();
-  console.log('Z')
+  console.log('Z ', Z.get())
 });
 
 console.log('______________________________________');

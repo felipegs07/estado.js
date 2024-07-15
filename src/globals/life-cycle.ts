@@ -28,7 +28,7 @@ const createLifeCycle = () => {
     state = PHASES.notifying;
 
     flagsGlobals.runListeners();
-    //flagsGlobals.clearAllAtoms();
+    flagsGlobals.clearAllAtoms();
     
     state = PHASES.waiting;
   };
