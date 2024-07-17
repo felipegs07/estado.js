@@ -1,5 +1,5 @@
 {
-  "name": "estado.js",
+  "name": "@estadojs/core",
   "version": "0.1.0",
   "main": "./dist/estado.cjs",
   "module": "./dist/estado.mjs",
