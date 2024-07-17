@@ -1,17 +1,28 @@
 {
-  "name": "estado.js",
+  "name": "estado",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "main": "./dist/estado.cjs",
+  "module": "./dist/estado.mjs",
+  "types": "./dist/estado.d.ts",
+  "unpkg": "./dist/estado.js",
+  "exports": {
+    ".": {
+      "require": "./dist/estado.cjs",
+      "import": "./dist/estado.mjs"
+    }
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && dts-bundle-generator --config ./bundle-generator.config.ts",
-    "test": "vitest"
+    "test": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.0",
+    "dts-bundle-generator": "^9.5.1",
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
-    "vitest": "^1.6.0",
-    "dts-bundle-generator": "^9.5.1"
+    "vitest": "^1.6.0"
   }
 }
