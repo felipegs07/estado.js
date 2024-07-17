@@ -1,7 +1,7 @@
 {
   "name": "estado",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "main": "./dist/estado.cjs",
   "module": "./dist/estado.mjs",
   "types": "./dist/estado.d.ts",
