@@ -15,9 +15,9 @@ const getPackageNameCamelCase = () => {
 };
 
 const fileName = {
-  es: `${getPackageName()}.mjs`,
-  cjs: `${getPackageName()}.cjs`,
-  umd: `${getPackageName()}.js`,
+  es: `estado.mjs`,
+  cjs: `estado.cjs`,
+  umd: `estado.js`,
 };
 
 module.exports = defineConfig({

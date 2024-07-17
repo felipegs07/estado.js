@@ -1,7 +1,6 @@
 {
-  "name": "estado",
-  "private": true,
-  "version": "0.0.0",
+  "name": "estado.js",
+  "version": "0.1.0",
   "main": "./dist/estado.cjs",
   "module": "./dist/estado.mjs",
   "types": "./dist/estado.d.ts",
@@ -24,5 +23,20 @@
     "typescript": "^5.2.2",
     "vite": "^5.3.1",
     "vitest": "^1.6.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/felipegs07/estado.js"
+  },
+  "keywords": [
+    "fine-grained reactivity",
+    "state management",
+    "atom based"
+  ],
+  "author": "Felipe Gustavo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/felipegs07/estado.js/issues"
+  },
+  "homepage": "https://github.com/felipegs07/estado.js#readme"
 }
