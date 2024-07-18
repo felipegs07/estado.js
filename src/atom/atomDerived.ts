@@ -3,7 +3,14 @@ import flagsGlobals from '../globals/flags';
 import { lifeCycle, PHASES } from "../globals/life-cycle";
 
 
-const calculateStateValue = <T>(atom: Atom<T>, func: () => T | Promise<T>) => {
+const calculateStateValue = <T>(atom: Atom<T>, func: () => T | Promise<T>, forced: boolean = false) => {
+  if (forced) {
+    flagsGlobals.addCurrentAtom(null);
+    const fnResult = func();
+
+    return fnResult instanceof Promise ? atom.getPureState() : fnResult;
+  }
+
   flagsGlobals.addCurrentAtom(atom);
   const fnValue = func();
   if (fnValue instanceof Promise) {
@@ -11,11 +18,12 @@ const calculateStateValue = <T>(atom: Atom<T>, func: () => T | Promise<T>) => {
       atom.asyncUpdate(value);
     });
 
-    flagsGlobals.clearCurrentAtom();
+    flagsGlobals.addCurrentAtom(null);
     return undefined;
   }
 
-  flagsGlobals.clearCurrentAtom();
+  flagsGlobals.addCurrentAtom(null);
+  //console.log('fnValue', fnValue)
 
   return fnValue;
 };
@@ -32,24 +40,29 @@ export class AtomDerived<T> {
 
   constructor(fn: () => T) {
     this.dependencies = new Set();
-    this.color = 'BLACK';
+    this.color = 'WHITE';
     this.computationFn = fn;
-    this.state = calculateStateValue(this as unknown as Atom<T>, fn);
     this.children = new Set();
     this.listeners = new Set();
-    this.type = this.defineDerivedType();
+    this.type = 'SINGLE';
     this.effects = new Set();
   }
 
   private defineDerivedType(): DerivedTypes {
-    if( this.dependencies.size > 1) return 'MULTI';
+    if (this.dependencies.size > 1) return 'MULTI';
+    if (this.dependencies.size === 0) return 'SINGLE';
 
     const it = this.dependencies.values();
     const first = it.next();
     const dependency = first.value;
+    //console.log('dependency', this.dependencies)
 
-    return dependency.type === 'MULTI' ? 'MULTI' : 'SIMPLE';
-  } 
+    return dependency.type === 'MULTI' ? 'MULTI' : 'SINGLE';
+  }
+  
+  verifyIsActiveAtom(): boolean {
+    return this.children.size !== 0
+  };
 
   addDeps(dep: Atom<T>):void {
     this.dependencies.add(dep);
@@ -64,32 +77,47 @@ export class AtomDerived<T> {
       fn();
     });
 
-    this.color = 'BLACK';
-  }
-
-  checkChildren():void {
-    const childrenList = [...this.children];
-    this.children.clear();
-    childrenList.forEach(atom => {
-      atom.check();
-    });
-  }
-
-  checkEffects(): void {
-    const effectsList = [...this.effects];
-    this.effects.clear();
-    effectsList.forEach(atom => {
-      atom.check();
-    });
+    const isActiveAtom = this.verifyIsActiveAtom();
+    if (isActiveAtom) {
+      this.color = 'GREEN';
+    }
   }
 
   getStatus(): StatusColors {
     return this.color;
   }
 
+  getPureState(): T {
+    return this.state as T;
+  }
+
   get(): T {
     const CURRENT_ATOM = flagsGlobals.getCurrentAtom<T>();
 
+    if (this.color === 'WHITE' && this.state === undefined) {
+      this.setInitialState();
+    } 
+    
+  console.log('GET',{
+        currentPhase: lifeCycle.getPhase(),
+        color: this.color,
+        state: this.state,
+        ins: this
+      })
+    if ((this.color === 'RED' || this.color === 'YELLOW') && lifeCycle.getPhase() === PHASES.waiting) {
+      const newState = calculateStateValue(this as unknown as Atom<T>, this.computationFn, true);
+
+      if (this.state !== newState) {
+        this.state = newState;
+        this.color = 'GREEN';
+        console.log('GET UPDATE')
+
+        return newState as T;
+      }
+
+      return this.state as T;
+    } 
+    
     if (CURRENT_ATOM !== null) {
       CURRENT_ATOM.addDeps(this as unknown as Atom<T>);
 
@@ -126,8 +154,9 @@ export class AtomDerived<T> {
 
   updateState(newState: T | undefined): boolean { 
     if (newState !== undefined && newState !== this.state) {
+      console.log('updateState')
+      this.color = 'RED';
       this.state = newState;
-      this.color = 'GREEN';
       flagsGlobals.addListener<T>(this as unknown as Atom<T>);
       
       this.checkEffects();
@@ -136,8 +165,19 @@ export class AtomDerived<T> {
       return true;
     } 
     
-    this.color = 'BLACK';
+    this.color = 'GREEN';
+
     return false;
+  }
+
+  setInitialState(): void {
+    //console.log('init')
+    const newState = calculateStateValue(this as unknown as Atom<T>, this.computationFn);
+    this.color = 'GREEN';
+    this.state = newState
+    this.type = this.defineDerivedType();
+
+    //console.log('this', this)
   }
 
   recalculateState(): void {
@@ -148,40 +188,81 @@ export class AtomDerived<T> {
     this.updateState(newState);
   }
 
+  checkChildren():void {
+    const childrenList = [...this.children];
+    const nonActiveList = childrenList.filter(atom => atom.verifyIsActiveAtom() === false);
+    childrenList.forEach(atom => {
+      atom.check();
+    });
+    this.children = new Set(nonActiveList);
+  }
+
+  checkEffects(): void {
+    const effectsList = [...this.effects];
+    this.effects.clear();
+    effectsList.forEach(atom => {
+      atom.check();
+    });
+  }
+
   check(): void {
-    if (this.color === 'BLACK') {
-      if (this.type === 'SIMPLE'){
-        this.recalculateState();
+    console.log('CHECK', {
+      instance: this
+    });
+
+    this.color = this.type === 'SINGLE'  ? 'RED' : 'YELLOW';
+    if (this.type === 'SINGLE') {
+      const isActiveAtom = this.verifyIsActiveAtom();
+      if (isActiveAtom) {
+        this.dependencies.clear();
+        const newState = calculateStateValue(this as unknown as Atom<T>, this.computationFn);
+        this.type = this.defineDerivedType();
+        //console.log('SINGLE', {isActiveAtom, newState, instance: this});
+        this.updateState(newState);
+        //this.recalculateState();
       } else {
         this.color = 'RED';
-        flagsGlobals.addAtomDerive<T>(this as unknown as Atom<T>);
-        this.checkChildren();
       }
+    } else {
+      console.log('addToDerive')
+      flagsGlobals.addAtomDerive<T>(this as unknown as Atom<T>);
+      this.checkChildren();
     }
   }
 
   sync(): boolean {
-    if(this.color !== 'GREEN') {
-      let hasUpdate: boolean = false;
-      this.dependencies.forEach(dep => {
-        const status = dep.getStatus();
-        if (status === 'GREEN') {
-          hasUpdate = true;
-        } else if (status === 'RED') {
-          const newStatus = dep.sync();
-
-          if (newStatus) hasUpdate = true;
-        } 
-      });
+    if (this.color !== 'GREEN') {
+      let hasUpdate: boolean = this.color === 'RED';
+      
+      if (this.color !== 'RED') {
+        this.dependencies.forEach(dep => {
+          const status = dep.getStatus();
+          if (status === 'RED') {
+            hasUpdate = true;
+          } else if (status === 'YELLOW') {
+            const newStatus = dep.sync();
+  
+            if (newStatus) hasUpdate = true;
+          } 
+        });
+      }
 
       if (hasUpdate) {
-        this.recalculateState();
+        const isActiveAtom = this.verifyIsActiveAtom();
+
+        if (isActiveAtom) {
+          this.recalculateState();
+        } else {
+          this.color = 'RED';
+          flagsGlobals.addListener<T>(this as unknown as Atom<T>);
+        }
       } else {
-        this.color = 'BLACK';
+        this.color = 'GREEN';
       }
+
       return hasUpdate;
     }
 
-    return true;
+    return false;
   }
 }

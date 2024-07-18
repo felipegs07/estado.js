@@ -3,7 +3,7 @@ import flagsGlobals from '../globals/flags';
 import { StatusColors, AtomTypes, Atom } from "./types";
 
 const getInitialValue = <T>(atom: Atom<T>, func: () => T | Promise<T>) => {
-  flagsGlobals.clearCurrentAtom();
+  flagsGlobals.addCurrentAtom(null);
   const fnValue = func();
   if (fnValue instanceof Promise) {
     fnValue.then(value => {
@@ -26,7 +26,7 @@ export class AtomRoot<T> {
   
 
   constructor(initialValueOrFn: T | any) {
-    this.color = 'BLACK';
+    this.color = 'GREEN';
     this.type = 'ROOT';
     this.state =
       typeof initialValueOrFn !== "function"
@@ -55,7 +55,7 @@ export class AtomRoot<T> {
       fn();
     });
 
-    this.color = 'BLACK';
+    this.color = 'GREEN';
   }
 
   checkChildren(): void {
@@ -93,6 +93,7 @@ export class AtomRoot<T> {
   set(newValueOrFn: T | ((oldState: T) => T)): void {
     const currentPhase = lifeCycle.getPhase();
     const isBatching = flagsGlobals.getIsBatch();
+
     if (currentPhase === PHASES.waiting || isBatching) {
       lifeCycle.startChecking();
 
@@ -101,8 +102,14 @@ export class AtomRoot<T> {
         : newValueOrFn;
 
       if (this.state !== newState) {
+        console.log('set=', newState)
+        console.log({
+          currentPhase: lifeCycle.getPhase(),
+          isBatching,
+          ins: this
+        })
         this.state = newState;
-        this.color = 'GREEN';
+        this.color = 'RED';
 
         flagsGlobals.addListener<T>(this as unknown as Atom<T>);
         this.checkEffects();

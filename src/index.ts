@@ -16,18 +16,25 @@ export const state = <T>(initialValueOrFn: T | (() => T)) => {
     },
     get: () => {
       return instance.get();
+    },
+    debug: (id: string) => {
+      console.log(`instance - ${id}: `, instance);
     }
   });
 };
 export const derived = <T>(initialValueOrFn: () => T) => {
   const instance = new AtomDerived<T>(initialValueOrFn);
 
+  // console.log('derived', instance)
   return ({
     sub: (fn: () => void) => {
       instance.sub(fn);
     },
     get: () => {
       return instance.get();
+    },
+    debug: (id: string) => {
+      console.log(`instance - ${id}: `, instance);
     }
   });
 };

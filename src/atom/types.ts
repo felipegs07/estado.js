@@ -14,11 +14,13 @@ export type Atom<T> = {
   asyncUpdate: (newState: T) => void;
   updateState: (newState: T | undefined) => boolean;
   recalculateState: () => void;
+  getPureState: () => T;
+  verifyIsActiveAtom: () => boolean;
 };
 
 export type Setter<T> = (oldState: T) => T;
-export type StatusColors = 'BLACK' | 'RED' | 'GREEN';
-export type DerivedTypes = 'SIMPLE' | 'MULTI'
+export type StatusColors = 'WHITE' | 'GREEN' | 'YELLOW' | 'RED';
+export type DerivedTypes = 'SINGLE' | 'MULTI'
 export type AtomTypes =  'ROOT' | 'EFFECT' | DerivedTypes;
 export type Flags = {
   CURRENT_ATOM: Atom<unknown> | null;
