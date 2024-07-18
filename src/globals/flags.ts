@@ -11,7 +11,7 @@ const createFlags = () => {
   const getAtomsToDerive = <T>() => ATOMS_DERIVE as Set<Atom<T>>;
   const getIsBatch = () => IS_BATCH;
 
-  const addCurrentAtom = <T>(atom: Atom<T>) => {
+  const addCurrentAtom = <T>(atom: Atom<T> | null) => {
     CURRENT_ATOM = atom;
   };
 
@@ -30,6 +30,7 @@ const createFlags = () => {
   };
 
   const runAtomsDerivation = () => {
+    console.log('ATOMS_DERIVE', ATOMS_DERIVE)
     ATOMS_DERIVE.forEach(atom => {
       atom.sync();
     });
@@ -41,10 +42,6 @@ const createFlags = () => {
 
   const stopBatching = () => {
     IS_BATCH = false;
-  };
-
-  const clearCurrentAtom = () => {
-    CURRENT_ATOM = null;
   };
 
   const clearAllAtoms = () => {
@@ -64,7 +61,6 @@ const createFlags = () => {
     runAtomsDerivation,
     runBatching,
     stopBatching,
-    clearCurrentAtom,
     clearAllAtoms
   }
 };

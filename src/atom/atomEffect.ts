@@ -5,7 +5,7 @@ import flagsGlobals from '../globals/flags';
 const executeEffectFn = <T>(atom: Atom<T>, computationFn: () => T) => {
   flagsGlobals.addCurrentAtom(atom);
   computationFn();
-  flagsGlobals.clearCurrentAtom();
+  flagsGlobals.addCurrentAtom(null);
 };
 
 export class AtomEffect<T> {
@@ -42,7 +42,7 @@ export class AtomEffect<T> {
     let hasUpdate: boolean = false;
     this.dependencies.forEach(dep => {
       const status = dep.getStatus();
-      if (status === 'RED') {
+      if (status === 'YELLOW') {
         const newStatus = dep.sync();
 
         if (newStatus) hasUpdate = true;
