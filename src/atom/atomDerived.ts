@@ -2,16 +2,19 @@ import { StatusColors, Atom, DerivedTypes } from "./types";
 import flagsGlobals from '../globals/flags';
 import { lifeCycle, PHASES } from "../globals/life-cycle";
 
-
 const calculateStateValue = <T>(atom: Atom<T>, func: () => T | Promise<T>, forced: boolean = false) => {
-  if (forced) {
-    flagsGlobals.addCurrentAtom(null);
-    const fnResult = func();
+  const oldAtom = flagsGlobals.getCurrentAtom();
+  console.log('oldAtom', oldAtom);
+  console.log('currentAtom', atom);
+  console.log('-------------------')
+  flagsGlobals.addCurrentAtom(atom);
 
+  if (forced) {
+    const fnResult = func();
+    flagsGlobals.addCurrentAtom(null);
     return fnResult instanceof Promise ? atom.getPureState() : fnResult;
   }
 
-  flagsGlobals.addCurrentAtom(atom);
   const fnValue = func();
   if (fnValue instanceof Promise) {
     fnValue.then(value => {
@@ -22,8 +25,11 @@ const calculateStateValue = <T>(atom: Atom<T>, func: () => T | Promise<T>, force
     return undefined;
   }
 
-  flagsGlobals.addCurrentAtom(null);
-  //console.log('fnValue', fnValue)
+  if (oldAtom !== null) {
+    flagsGlobals.addCurrentAtom(oldAtom);
+  } else {
+    flagsGlobals.addCurrentAtom(null);
+  }
 
   return fnValue;
 };
@@ -37,8 +43,10 @@ export class AtomDerived<T> {
   private color: StatusColors;
   private type: DerivedTypes;
   private computationFn: () => T;
+  private isAsync: boolean;
 
   constructor(fn: () => T) {
+    this.isAsync = false;
     this.dependencies = new Set();
     this.color = 'WHITE';
     this.computationFn = fn;
@@ -55,13 +63,12 @@ export class AtomDerived<T> {
     const it = this.dependencies.values();
     const first = it.next();
     const dependency = first.value;
-    //console.log('dependency', this.dependencies)
 
     return dependency.type === 'MULTI' ? 'MULTI' : 'SINGLE';
   }
   
   verifyIsActiveAtom(): boolean {
-    return this.children.size !== 0
+    return this.children.size !== 0 || this.effects.size !== 0 || this.isAsync;
   };
 
   addDeps(dep: Atom<T>):void {
@@ -78,6 +85,12 @@ export class AtomDerived<T> {
     });
 
     const isActiveAtom = this.verifyIsActiveAtom();
+    console.log('LISTENER', {
+      thIs: this,
+      isActiveAtom,
+      children: this.children.size,
+      effects: this.effects.size
+    })
     if (isActiveAtom) {
       this.color = 'GREEN';
     }
@@ -89,6 +102,18 @@ export class AtomDerived<T> {
 
   getPureState(): T {
     return this.state as T;
+  } 
+
+  connectAtoms(currentAtom: Atom<T>): void {
+    if (currentAtom !== null) {
+      currentAtom.addDeps(this as unknown as Atom<T>);
+
+      if (currentAtom?.type === 'EFFECT') {
+        this.effects.add(currentAtom);
+      } else {
+        this.children.add(currentAtom);
+      }
+    }
   }
 
   get(): T {
@@ -98,18 +123,24 @@ export class AtomDerived<T> {
       this.setInitialState();
     } 
     
-  console.log('GET',{
+    console.log('GET',{
+      currentAtom: CURRENT_ATOM,
         currentPhase: lifeCycle.getPhase(),
-        color: this.color,
-        state: this.state,
-        ins: this
+        thiS: this,
+        color: this.color
       })
-    if ((this.color === 'RED' || this.color === 'YELLOW') && lifeCycle.getPhase() === PHASES.waiting) {
+    if ((this.color === 'RED' || this.color === 'YELLOW') && (lifeCycle.getPhase() === PHASES.waiting || lifeCycle.getPhase() === PHASES.notifying)) {
+      this.dependencies.clear();
+      this.children.clear();
+      this.connectAtoms(CURRENT_ATOM);
+  
+      
       const newState = calculateStateValue(this as unknown as Atom<T>, this.computationFn, true);
 
       if (this.state !== newState) {
         this.state = newState;
         this.color = 'GREEN';
+        this.runListeners();
         console.log('GET UPDATE')
 
         return newState as T;
@@ -118,15 +149,7 @@ export class AtomDerived<T> {
       return this.state as T;
     } 
     
-    if (CURRENT_ATOM !== null) {
-      CURRENT_ATOM.addDeps(this as unknown as Atom<T>);
-
-      if (CURRENT_ATOM?.type === 'EFFECT') {
-        this.effects.add(CURRENT_ATOM);
-      } else {
-        this.children.add(CURRENT_ATOM);
-      }
-    }
+    this.connectAtoms(CURRENT_ATOM);
 
     return this.state as T;
   }
@@ -141,6 +164,7 @@ export class AtomDerived<T> {
 
       if (hasUpdate) {
         this.color = 'GREEN';
+        this.isAsync = true;
 
         if (!isBatching) {
           lifeCycle.startDeriving();
@@ -154,7 +178,7 @@ export class AtomDerived<T> {
 
   updateState(newState: T | undefined): boolean { 
     if (newState !== undefined && newState !== this.state) {
-      console.log('updateState')
+      console.log('updateState', {thisI: this, newState})
       this.color = 'RED';
       this.state = newState;
       flagsGlobals.addListener<T>(this as unknown as Atom<T>);
@@ -172,10 +196,12 @@ export class AtomDerived<T> {
 
   setInitialState(): void {
     //console.log('init')
+    this.dependencies.clear();
     const newState = calculateStateValue(this as unknown as Atom<T>, this.computationFn);
     this.color = 'GREEN';
     this.state = newState
     this.type = this.defineDerivedType();
+    this.runListeners();
 
     //console.log('this', this)
   }
@@ -188,13 +214,20 @@ export class AtomDerived<T> {
     this.updateState(newState);
   }
 
-  checkChildren():void {
+  checkChildren(): void {
     const childrenList = [...this.children];
     const nonActiveList = childrenList.filter(atom => atom.verifyIsActiveAtom() === false);
     childrenList.forEach(atom => {
       atom.check();
     });
-    this.children = new Set(nonActiveList);
+    console.log('checkChildren', {
+      childrenList,
+      nonActiveList,
+      children: [...this.children]
+    })
+    if (nonActiveList?.length > 0) {
+      this.children = new Set(nonActiveList);
+    }
   }
 
   checkEffects(): void {
@@ -206,20 +239,17 @@ export class AtomDerived<T> {
   }
 
   check(): void {
-    console.log('CHECK', {
-      instance: this
-    });
-
     this.color = this.type === 'SINGLE'  ? 'RED' : 'YELLOW';
+    console.log('CHECK', {
+      instance: this,
+      test: this.type === 'SINGLE'  ? 'RED' : 'YELLOW',
+      children: [...this.children]
+    });
     if (this.type === 'SINGLE') {
       const isActiveAtom = this.verifyIsActiveAtom();
+      console.log('isActiveAtom', isActiveAtom)
       if (isActiveAtom) {
-        this.dependencies.clear();
-        const newState = calculateStateValue(this as unknown as Atom<T>, this.computationFn);
-        this.type = this.defineDerivedType();
-        //console.log('SINGLE', {isActiveAtom, newState, instance: this});
-        this.updateState(newState);
-        //this.recalculateState();
+        this.recalculateState();
       } else {
         this.color = 'RED';
       }

@@ -23,7 +23,7 @@ D.sub(() => console.log('D'))
 
 A.set(11); */
 
-const A = state<number>(10);
+/* const A = state<number>(10);
 const E = state<number>(30);
 const Z = state<number>(50);
 
@@ -61,7 +61,7 @@ batchUpdates(() => {
   A.set(11);
   E.set(31);
 });
-
+ */
 /*
 setTimeout(() => {
   Z.set(51);
@@ -96,7 +96,29 @@ effect(() => {
 console.log('_____________________________')
 A.set(11); */
 
-console.log('lifecycle', {
-  listeners: flagsGlobals.getListeners(),
-  toDerive: flagsGlobals.getAtomsToDerive(),
+const s = state(1);
+const a = derived(() => s.get());
+const b = derived(() => a.get() * 2);
+const c = derived(() => a.get() * 3);
+let callCount = 0;
+const d = derived(() => {
+  callCount++;
+  return b.get() + c.get();
 });
+
+console.log('TEST: d === 5', d.get() === 5);
+console.log('ATOMSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS', {
+  s: s.children.size, a: a.children.size, b: b.children.size, c: c.children.size, d: d.children.size
+})
+s.set(2);
+console.log('SET 2 _______________________________________');
+console.log('TEST: d === 10', d.get() === 10);
+console.log('ATOMSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS', {
+  s: s.children.size, a: a.children.size, b: b.children.size, c: c.children.size, d: d.children.size
+})
+s.set(3);
+console.log('SET 3 _______________________________________');
+console.log('TEST: d === 15', { test: d.get() === 15, value: d.get()});
+console.log('ATOMSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS', {
+  s: s.children.size, a: a.children.size, b: b.children.size, c: c.children.size, d: d.children.size
+})

@@ -1,7 +1,7 @@
 import { expect, vi, describe, it } from 'vitest';
 import { state, derived, effect, batchUpdates } from '../index';
 
-describe('Effect', () => {
+describe('batchUpdates', () => {
   it('should run effects in the correctly order when called with batch function', () => {
     const listener = vi.fn();
 

@@ -27,6 +27,9 @@ const createLifeCycle = () => {
   const startNotifying = () => {
     state = PHASES.notifying;
 
+    console.log('_______________________________________________________________')
+    console.log('NOTIFYING')
+    console.log('_______________________________________________________________')
     flagsGlobals.runListeners();
     flagsGlobals.clearAllAtoms();
     

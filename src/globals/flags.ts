@@ -24,6 +24,7 @@ const createFlags = () => {
   };
 
   const runListeners = () => {
+    console.log(' LISTENERS',  LISTENERS)
     LISTENERS.forEach(atom => {
       atom.runListeners();
     });

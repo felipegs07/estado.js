@@ -48,7 +48,7 @@ export class AtomEffect<T> {
         if (newStatus) hasUpdate = true;
       } 
       
-      if (status === 'GREEN') {
+      if (status === 'RED') {
         hasUpdate = true;
       }
     });

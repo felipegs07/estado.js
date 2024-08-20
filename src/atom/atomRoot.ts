@@ -5,6 +5,7 @@ import { StatusColors, AtomTypes, Atom } from "./types";
 const getInitialValue = <T>(atom: Atom<T>, func: () => T | Promise<T>) => {
   flagsGlobals.addCurrentAtom(null);
   const fnValue = func();
+
   if (fnValue instanceof Promise) {
     fnValue.then(value => {
       atom.set(value);
@@ -77,6 +78,9 @@ export class AtomRoot<T> {
   get(): T {
     const CURRENT_ATOM = flagsGlobals.getCurrentAtom<T>();
 
+    console.log('GET ROOT', {
+      CURRENT_ATOM
+    })
     if (CURRENT_ATOM !== null) {
       CURRENT_ATOM.addDeps(this as unknown as Atom<T>);
 

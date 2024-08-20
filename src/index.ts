@@ -6,7 +6,7 @@ import { lifeCycle } from './globals/life-cycle';
 
 export const state = <T>(initialValueOrFn: T | (() => T)) => {
   const instance = new AtomRoot<T>(initialValueOrFn)
-  
+
   return ({
     sub: (fn: () => void) => {
       instance.sub(fn);
@@ -25,7 +25,6 @@ export const state = <T>(initialValueOrFn: T | (() => T)) => {
 export const derived = <T>(initialValueOrFn: () => T) => {
   const instance = new AtomDerived<T>(initialValueOrFn);
 
-  // console.log('derived', instance)
   return ({
     sub: (fn: () => void) => {
       instance.sub(fn);
